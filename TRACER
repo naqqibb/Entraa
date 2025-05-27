@@ -68,3 +68,4 @@ for /f "tokens=*" %%g in ('dir /b /s "*.cert" "*.auth" "*.bio" 2^>nul') do (
         )
     )
 )
+)               
