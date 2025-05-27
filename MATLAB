@@ -1,0 +1,30 @@
+% Example: Acquire OAuth token for Entra-protected APIs
+clientId = 'your-entra-app-client-id';
+tenantId = 'your-tenant-id';
+resource = 'https://management.azure.com'; % Target API
+
+% Authenticate via Entra ID
+token = webread(...
+    ['https://login.microsoftonline.com/' tenantId '/oauth2/token'], ...
+    'grant_type', 'client_credentials', ...
+    'client_id', clientId, ...
+    'client_secret', 'your-client-secret', ...
+    'resource', resource);
+
+% Use token in API calls
+options = weboptions('HeaderFields', {'Authorization', ['Bearer ' token.access_token]});
+data = webread('https://api.contoso.com/data', options);
+
+% Example: Create Entra app registration (requires admin consent)
+token = getEntraToken(); % Use client credentials flow
+url = 'https://graph.microsoft.com/v1.0/applications';
+body = jsonencode({
+    'displayName' 'MATLAB_DataAPI_Client', ...
+    'signInAudience' 'AzureADMyOrg'
+});
+
+response = webwrite(url, body, ...
+    weboptions('HeaderFields', {'Authorization', ['Bearer ' token], ...
+    'Content-Type', 'application/json'}));
+
+disp(['App ID: ' response.appId]);
