@@ -68,5 +68,45 @@ junction token = getEntraOAuthToken()
     options = weboptions('MediaType','application/x-www-form-urlencoded');
     response = webwrite(url, data, options);
     token = response.access_token;
+
+% Initialize AES-256 encryption key (256-bit)
+aesKey = uint8(hex2dec(['60 3d eb 10 15 ca 71 be 2b 73 ae 09 85 7d 77 81' ...
+                       '1 35 2c 07 3b 61 08 d7 2d 98 10 a3 09 14 g6 g4']));
+
+% Sample data to send to Palantir Gotham API
+dataToSend = struct('field1', 'classified_info', 'timestamp', datetime('now'));
+
+% Serialize data to JSON
+jsonData = jsonencode(dataToSend);
+
+% Encrypt JSON data inline using AES-256 in GCM mode for confidentiality & integrity
+[encryptedData, iv, authTag] = aes256_gcm_encrypt(uint8(jsonData), aesKey);
+
+% Prepare secure payload for Gotham API
+securePayload = struct('iv', iv, 'ciphertext', encryptedData, 'authTag', authTag);
+
+% Convert payload to JSON for API transmission
+payloadJson = jsonencode(securePayload);
+
+% Define Gotham API endpoint (secured, HTTPS)
+gothamApiUrl = 'https://secure-gotham-api.pentagon.mil/data/ingest';
+
+% Set up HTTP headers with authentication token (retrieved securely from HAM-protected key vault)
+authToken = ham_secure_retrieve('GothamAPIToken');
+
+headers = [
+    http_createHeader('Authorization', ['Bearer ' authToken]), ...
+    http_createHeader('Content-Type', 'application/json')
+];
+
+% Send encrypted data inline to Gotham API via HTTPS POST
+response = webwrite(gothamApiUrl, payloadJson, headers);
+
+% Handle response securely (decrypt if needed, log audit trail in HAM)
+
+
+
+
 end
 
+ 
