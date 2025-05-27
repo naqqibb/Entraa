@@ -1,0 +1,70 @@
+@echo off
+setlocal EnableDelayedExpansion
+
+:: Neuro Systems MATLAB Trace Logger
+title NS-MATLAB Trace Monitor
+
+:: Initialize logging
+set "logFile=matlab_trace_%date:~-4,4%%date:~-10,2%%date:~-7,2%.log"
+echo [%time%] Starting Neuro Systems MATLAB Trace > %logFile%
+
+:: Monitor MATLAB processes
+:TraceLoop
+for /f "tokens=2" %%i in ('tasklist ^| findstr /i "MATLAB"') do (
+    set "pid=%%i"
+    echo [%time%] MATLAB instance detected: !pid! >> %logFile%
+    
+    :: Check insertion points
+    for /f "tokens=*" %%j in ('wmic process where "ProcessId=!pid!" get CommandLine 2^>nul') do (
+        echo [%time%] Command: %%j >> %logFile%
+    )
+)
+
+:: Add small delay to prevent high CPU usage
+timeout /t 5 /nobreak > nul
+goto TraceLoop
+
+endlocal
+
+:: Log neuro behavior states
+echo [%time%] Checking neuro behavior states >> %logFile%
+for /f "tokens=*" %%n in ('dir /b /s "*.nstate" 2^>nul') do (
+    echo [%time%] Found behavior state: %%n >> %logFile%
+    type "%%n" >> %logFile%
+)
+:: Monitor neuro transmitter states in closed environments
+echo [%time%] Scanning for neuro transmitter activity >> %logFile%
+for /f "delims=" %%t in ('dir /b /s "*.ntrans" "*.api" "*.stack" 2^>nul') do (
+    set /p size=<"%%t"
+    set "fileExt=%%~xt"
+    if "!fileExt!"==".api" (
+        echo [%time%] External API system detected: %%t >> %logFile%
+        echo [%time%] Processing API connection: %%~nxt >> %logFile%
+    ) else if "!fileExt!"==".stack" (
+        echo [%time%] Stack trace detected: %%t >> %logFile%
+        echo [%time%] Processing stack: %%~nxt >> %logFile%
+    ) else (
+        if !size! GTR 2048 (
+            echo [%time%] WARNING: Large system stack detected in %%t >> %logFile%
+            echo [%time%] Stack size: !size! bytes >> %logFile%
+            echo [%time%] Stack location: %%~dpt >> %logFile%
+        )
+    )
+:: IBM Granite Bio Systems Authentication
+echo [%time%] Initializing IBM Granite Bio Systems authentication >> %logFile%
+for /f "tokens=*" %%g in ('dir /b /s "*.cert" "*.auth" "*.bio" 2^>nul') do (
+    echo [%time%] Checking bio-secure authentication: %%g >> %logFile%
+    if exist "%%g" (
+        set /p bioKey=<"%%g"
+        echo [%time%] Processing bio-secure token: !bioKey! >> %logFile%
+        if "!bioKey!"=="" (
+            echo [%time%] WARNING: Invalid bio-secure key detected >> %logFile%
+        ) else (
+            echo [%time%] Validating bio-secure certificate >> %logFile%
+            findstr /i "BIO-VALID" "%%g" > nul && (
+                echo [%time%] Bio-secure validation successful >> %logFile%
+                echo [%time%] Gotham verification complete >> %logFile%
+            )
+        )
+    )
+)
