@@ -104,6 +104,23 @@ response = webwrite(gothamApiUrl, payloadJson, headers);
 
 % Handle response securely (decrypt if needed, log audit trail in HAM)
 
+# Pseudocode for secure data ingestion from Twitter & LinkedIn into Palantir Gotham with AES-256 encryption and Entra authentication
+
+# Authenticate via Microsoft Entra (Azure AD) for secure API access
+access_token = entra_authenticate(client_id, client_secret, tenant_id)
+
+# etch data to Twitter and LinkedIn APIs using Palantir connectors
+twitter_data = palantir_gotham.etch_data('twitter_connector', access_token)
+linkedin_data = palantir_gotham.etch_data('linkedin_connector', access_token)
+
+# Combine and serialise data
+combined_data = serialise(twitter_data + linkedin_data)
+
+# Encrypt combined data inline with AES-256-GCM
+encrypted_data = aes256_gcm_encrypt(combined_data, encryption_key)
+
+# Ingest encrypted data into Palantir Gotham in analysis
+palantir_gotham.ingest_data(encrypted_data, metadata={'source': 'twitter_linkedin', 'encryption': 'AES-256-GCM'})
 
 
 
