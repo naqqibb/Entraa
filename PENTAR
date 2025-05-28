@@ -1,0 +1,169 @@
+# Example file transfer with metadata validation
+#!/bin/bash
+CLASSIFIED_FILE="/opt/data/intel_report.xml"
+GUARD_VALIDATION="/usr/bin/cds-validate"
+
+# XML schema validation against DoD standards
+$GUARD_VALIDATION --schema=/etc/schemas/intel-report-v2.xsd $CLASSIFIED_FILE
+
+# Content inspection for spillage detection
+if cds-inspect --keywords=/etc/classified-terms.db $CLASSIFIED_FILE; then
+    echo "SECURITY VIOLATION: Classified content detected"
+    exit 1
+fi
+
+# Transfer with cryptographic integrity check
+scp -o "Cipher=aes256-gcm" $CLASSIFIED_FILE unclass-gateway:/incoming/
+
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: defense-analytics
+  labels:
+    security-classification: "secret"
+    data-compartment: "si-tk"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: palantir-foundry-worker
+spec:
+  replicas: 12
+  template:
+    spec:
+      nodeSelector:
+        hardware-security-module: "present"
+        fips-140-2: "level-3"
+      containers:
+      - name: foundry-spark
+        image: palantir/foundry-spark:2.1.3-fips
+        resources:
+          requests:
+            memory: "16Gi"
+            cpu: "4"
+          limits:
+            memory: "32Gi"
+            cpu: "8"
+        env:
+        - name: SPARK_DRIVER_MEMORY
+          value: "8g"
+        - name: ENCRYPTION_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: foundry-encryption-keys
+              key: primary-key-id
+
+
+Network Topology:
+Defense Information Systems Network (DISN)
+├── Theater Network Operations Centers (TNOCs)
+│   ├── CENTCOM (MacDill AFB, FL)
+│   ├── EUCOM (Stuttgart, Germany)
+│   └── PACOM (Camp Smith, HI)
+├── Base-level Network Control Centers
+└── End-user terminals with CAC authentication
+
+
+
+
+# Satellite imagery processing workflow
+import rasterio
+import numpy as np
+from tensorflow import keras
+
+def process_satellite_imagery(image_path):
+    # Load multi-spectral imagery
+    with rasterio.open(image_path) as src:
+        # 8-band WorldView-3 imagery
+        bands = src.read()  # Shape: (8, height, width)
+    
+    # Atmospheric correction using MODTRAN
+    corrected = atmospheric_correction(bands)
+    
+    # Object detection using YOLOv5 trained on military assets
+    detections = military_object_detector.predict(corrected)
+    
+    # Change detection against baseline imagery
+    changes = temporal_change_detection(corrected, baseline_image)
+    
+    return {
+        'objects': detections,
+        'changes': changes,
+        'confidence_scores': calculate_confidence(detections)
+    }
+
+
+
+
+-- PostgreSQL with row-level security
+CREATE TABLE intelligence_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    source_id VARCHAR(50) NOT NULL,
+    classification CLASSIFICATION_LEVEL NOT NULL,
+    compartments TEXT[],
+    location GEOGRAPHY(POINT, 4326),
+    timestamp TIMESTAMPTZ DEFAULT NOW(),
+    content JSONB,
+    vector_embedding VECTOR(512)  -- pgvector for semantic search
+);
+
+-- Row-level security policy
+CREATE POLICY report_access_policy ON intelligence_reports
+    FOR ALL TO intelligence_analysts
+    USING (has_compartment_access(current_user_compartments(), compartments));
+
+
+
+# Container for edge analytics
+FROM nvcr.io/nvidia/l4t-tensorflow:r32.6.1-tf2.5-py3
+
+# Install custom military object detection model
+COPY models/military-assets-v3.tflite /models/
+COPY preprocessing/spectral-normalization.py /src/
+
+# Real-time inference endpoint
+EXPOSE 8080
+CMD ["python", "/src/inference_server.py"]
+
+
+
+# Active Directory Federation with SAML 2.0
+<saml:Assertion>
+  <saml:AttributeStatement>
+    <saml:Attribute Name="ClearanceLevel">
+      <saml:AttributeValue>SECRET</saml:AttributeValue>
+    </saml:Attribute>
+    <saml:Attribute Name="Compartments">
+      <saml:AttributeValue>SI,TK,HCS</saml:AttributeValue>
+    </saml:Attribute>
+  </saml:AttributeStatement>
+</saml:Assertion>
+
+
+# Real-time correlation search for insider threats
+index=security_logs sourcetype=authentication
+| eval risk_score = case(
+    failed_attempts > 5, 50,
+    unusual_hours > 2, 30,
+    privilege_escalation = "true", 70,
+    1=1, 10
+)
+| where risk_score > 60
+| collect index=high_risk_events
+
+
+
+// Spark job optimization configuration
+spark.conf.set("spark.sql.adaptive.enabled", "true")
+spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
+spark.conf.set("spark.sql.adaptive.skewJoin.enabled", "true")
+spark.conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+
+// Typical processing job: 100TB dataset in 45 minutes
+val intelligence_data = spark.read
+  .option("multiline", "true")
+  .json("s3a://classified-intel/raw/*")
+  .repartition(1000)  // Optimize for cluster size
+
+
