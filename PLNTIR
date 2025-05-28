@@ -1,0 +1,716 @@
+#!/usr/bin/env python3
+"""
+Pentagon Neural Algorithm - META & PLNTR Integration
+Advanced neural network system for Gotham platform upgrade
+Encrypted deep learning with military-grade security protocols
+"""
+
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as Q
+from torch.utils.data import DataLoader, Dataset
+import torch.optim as optim
+from transformers import AutoTokenizer, AutoModel
+import cryptography
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import json
+import hashlib
+import base64
+import time
+import threading
+import logging
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Optional, Any
+from dataclasses import dataclass
+import sqlite3
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import warnings
+warnings.filterwarnings('ignore')
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+@dataclass
+class EncryptedTensor:
+    """Encrypted tensor wrapper for secure neural network operations"""
+    encrypted_data: bytes
+    shape: Tuple[int, ...]
+    dtype: str
+    encryption_key_id: str
+    integrity_hash: str
+
+class MilitaryEncryptionModule:
+    """Military-grade encryption for neural network operations"""
+    
+    def __init__(self, classification_level: str = "SECRET"):
+        self.classification = classification_level
+        self.master_key = self._generate_master_key()
+        self.cipher_suite = Fernet(self.master_key)
+        self.rsa_private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=4096  # Military-grade RSA-4096
+        )
+        self.rsa_public_key = self.rsa_private_key.public_key()
+        self.key_rotation_interval = 3600  # 1 hour
+        self.last_rotation = time.time()
+        logger.info(f"Military encryption module initialized - Classification: {classification_level}")
+    
+    def _generate_master_key(self) -> bytes:
+        """Generate AES-256 master key with PBKDF2"""
+        password = b"PENTAGON_NEURAL_ALGORITHM_MASTER_KEY_2025"
+        salt = b"GOTHAM_UPGRADE_SALT_CLASSIFICATION_SECRET"
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA512(),
+            length=32,  # AES-256
+            salt=salt,
+            iterations=500000,  # NIST recommended minimum
+        )
+        return base64.urlsafe_b64encode(kdf.derive(password))
+    
+    def encrypt_tensor(self, tensor: torch.Tensor) -> EncryptedTensor:
+        """Encrypt PyTorch tensor with integrity checking"""
+        tensor_bytes = tensor.cpu().numpy().tobytes()
+        encrypted_data = self.cipher_suite.encrypt(tensor_bytes)
+        
+        # Generate integrity hash
+        integrity_hash = hashlib.sha256(tensor_bytes).hexdigest()
+        
+        return EncryptedTensor(
+            encrypted_data=encrypted_data,
+            shape=tensor.shape,
+            dtype=str(tensor.dtype),
+            encryption_key_id=self._get_key_id(),
+            integrity_hash=integrity_hash
+        )
+    
+    def decrypt_tensor(self, encrypted_tensor: EncryptedTensor) -> torch.Tensor:
+        """Decrypt tensor and verify integrity"""
+        decrypted_bytes = self.cipher_suite.decrypt(encrypted_tensor.encrypted_data)
+        
+        # Verify integrity
+        computed_hash = hashlib.sha256(decrypted_bytes).hexdigest()
+        if computed_hash != encrypted_tensor.integrity_hash:
+            raise ValueError("Tensor integrity verification failed")
+        
+        # Reconstruct tensor
+        numpy_array = np.frombuffer(decrypted_bytes, dtype=encrypted_tensor.dtype)
+        numpy_array = numpy_array.reshape(encrypted_tensor.shape)
+        return torch.from_numpy(numpy_array)
+    
+    def _get_key_id(self) -> str:
+        """Get current encryption key identifier"""
+        return f"KEY_{int(time.time() // self.key_rotation_interval)}"
+    
+    def rotate_keys(self):
+        """Rotate encryption keys for forward security"""
+        if time.time() - self.last_rotation > self.key_rotation_interval:
+            self.master_key = self._generate_master_key()
+            self.cipher_suite = Fernet(self.master_key)
+            self.last_rotation = time.time()
+            logger.info("Encryption keys rotated for forward security")
+
+class MetaTransformerEncoder(nn.Module):
+    """META-inspired transformer encoder for multi-domain analysis"""
+    
+    def __init__(self, input_dim: int = 768, hidden_dim: int = 2048, num_heads: int = 16, num_layers: int = 12):
+        super().__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        
+        # Multi-head attention layers
+        self.attention_layers = nn.ModuleList([
+            nn.MultiheadAttention(input_dim, num_heads, dropout=0.1, batch_first=True)
+            for _ in range(num_layers)
+        ])
+        
+        # Feed-forward networks
+        self.ffn_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(input_dim, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, input_dim),
+                nn.Dropout(0.1)
+            ) for _ in range(num_layers)
+        ])
+        
+        # Layer normalization
+        self.layer_norms_1 = nn.ModuleList([nn.LayerNorm(input_dim) for _ in range(num_layers)])
+        self.layer_norms_2 = nn.ModuleList([nn.LayerNorm(input_dim) for _ in range(num_layers)])
+        
+        # Classification heads for different intelligence types
+        self.sigint_classifier = nn.Linear(input_dim, 128)
+        self.geoint_classifier = nn.Linear(input_dim, 128)
+        self.humint_classifier = nn.Linear(input_dim, 128)
+        self.threat_classifier = nn.Linear(input_dim, 64)
+        
+        # Final fusion layer
+        self.fusion_layer = nn.Linear(384, 256)  # 128*3 = 384
+        self.output_layer = nn.Linear(256, 32)
+        
+    def forward(self, x: torch.Tensor, attention_mask: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        """Forward pass through META transformer encoder"""
+        # Multi-layer transformer encoding
+        for i in range(self.num_layers):
+            # Multi-head attention
+            residual = x
+            x = self.layer_norms_1[i](x)
+            attn_out, attn_weights = self.attention_layers[i](x, x, x, key_padding_mask=attention_mask)
+            x = residual + attn_out
+            
+            # Feed-forward network
+            residual = x
+            x = self.layer_norms_2[i](x)
+            x = residual + self.ffn_layers[i](x)
+        
+        # Global average pooling
+        if attention_mask is not None:
+            mask_expanded = attention_mask.unsqueeze(-1).expand(x.size())
+            x = x * (~mask_expanded).float()
+            pooled = x.sum(dim=1) / (~attention_mask).float().sum(dim=1, keepdim=True)
+        else:
+            pooled = x.mean(dim=1)
+        
+        # Multi-domain classification
+        sigint_features = F.relu(self.sigint_classifier(pooled))
+        geoint_features = F.relu(self.geoint_classifier(pooled))
+        humint_features = F.relu(self.humint_classifier(pooled))
+        
+        # Fusion of intelligence domains
+        fused_features = torch.cat([sigint_features, geoint_features, humint_features], dim=1)
+        fused_output = F.relu(self.fusion_layer(fused_features))
+        
+        # Threat assessment
+        threat_logits = self.threat_classifier(pooled)
+        final_output = self.output_layer(fused_output)
+        
+        return {
+            'sigint_features': sigint_features,
+            'geoint_features': geoint_features,
+            'humint_features': humint_features,
+            'fused_features': fused_output,
+            'threat_logits': threat_logits,
+            'final_output': final_output,
+            'attention_weights': attn_weights
+        }
+
+class PalantirGraphNeuralNetwork(nn.Module):
+    """Palantir-inspired Graph Neural Network for relationship analysis"""
+    
+    def __init__(self, node_features: int = 256, edge_features: int = 64, hidden_dim: int = 512):
+        super().__init__()
+        self.node_features = node_features
+        self.edge_features = edge_features
+        self.hidden_dim = hidden_dim
+        
+        # Graph convolution layers
+        self.node_encoder = nn.Sequential(
+            nn.Linear(node_features, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_dim, hidden_dim)
+        )
+        
+        self.edge_encoder = nn.Sequential(
+            nn.Linear(edge_features, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(hidden_dim // 2, hidden_dim // 2)
+        )
+        
+        # Graph attention mechanism
+        self.attention = nn.MultiheadAttention(hidden_dim, num_heads=8, batch_first=True)
+        
+        # Message passing layers
+        self.message_layers = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(hidden_dim * 2 + hidden_dim // 2, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, hidden_dim)
+            ) for _ in range(3)
+        ])
+        
+        # Output layers
+        self.node_classifier = nn.Linear(hidden_dim, 16)
+        self.link_predictor = nn.Linear(hidden_dim * 2, 8)
+        self.anomaly_detector = nn.Linear(hidden_dim, 4)
+        
+    def forward(self, node_features: torch.Tensor, edge_features: torch.Tensor, 
+                adjacency_matrix: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """Forward pass through Palantir GNN"""
+        batch_size, num_nodes, _ = node_features.shape
+        
+        # Encode nodes and edges
+        encoded_nodes = self.node_encoder(node_features)  # [batch, nodes, hidden]
+        encoded_edges = self.edge_encoder(edge_features)  # [batch, edges, hidden//2]
+        
+        # Message passing
+        current_nodes = encoded_nodes
+        for message_layer in self.message_layers:
+            # Aggregate neighboring information
+            neighbor_messages = torch.bmm(adjacency_matrix, current_nodes)  # [batch, nodes, hidden]
+            
+            # Create edge-aware messages
+            edge_indices = torch.nonzero(adjacency_matrix[0], as_tuple=False)  # Get edge indices
+            if len(edge_indices) > 0:
+                edge_messages = encoded_edges[:, :len(edge_indices)]
+                # Broadcast edge features to match node dimensions
+                edge_broadcast = edge_messages.mean(dim=1, keepdim=True).expand(-1, num_nodes, -1)
+            else:
+                edge_broadcast = torch.zeros(batch_size, num_nodes, self.hidden_dim // 2).to(current_nodes.device)
+            
+            # Combine node, neighbor, and edge information
+            combined = torch.cat([current_nodes, neighbor_messages, edge_broadcast], dim=-1)
+            current_nodes = message_layer(combined) + current_nodes  # Residual connection
+        
+        # Apply attention mechanism
+        attended_nodes, attention_weights = self.attention(current_nodes, current_nodes, current_nodes)
+        final_nodes = attended_nodes + current_nodes
+        
+        # Generate outputs
+        node_classifications = self.node_classifier(final_nodes)
+        
+        # Link prediction (pairwise node combinations)
+        node_pairs = []
+        for i in range(num_nodes):
+            for j in range(i + 1, num_nodes):
+                pair_features = torch.cat([final_nodes[:, i], final_nodes[:, j]], dim=-1)
+                node_pairs.append(pair_features)
+        
+        if node_pairs:
+            link_predictions = torch.stack([self.link_predictor(pair) for pair in node_pairs], dim=1)
+        else:
+            link_predictions = torch.zeros(batch_size, 1, 8).to(final_nodes.device)
+        
+        # Anomaly detection
+        anomaly_scores = self.anomaly_detector(final_nodes)
+        
+        return {
+            'node_embeddings': final_nodes,
+            'node_classifications': node_classifications,
+            'link_predictions': link_predictions,
+            'anomaly_scores': anomaly_scores,
+            'attention_weights': attention_weights
+        }
+
+class PentagonNeuralAlgorithm(nn.Module):
+    """Main Pentagon Neural Algorithm integrating META and Palantir technologies"""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__()
+        self.config = config
+        self.classification_level = config.get('classification', 'SECRET')
+        
+        # Initialize components
+        self.meta_encoder = MetaTransformerEncoder(
+            input_dim=config.get('transformer_dim', 768),
+            hidden_dim=config.get('transformer_hidden', 2048),
+            num_heads=config.get('attention_heads', 16),
+            num_layers=config.get('transformer_layers', 12)
+        )
+        
+        self.palantir_gnn = PalantirGraphNeuralNetwork(
+            node_features=config.get('node_features', 256),
+            edge_features=config.get('edge_features', 64),
+            hidden_dim=config.get('gnn_hidden', 512)
+        )
+        
+        # Cross-modal fusion layers
+        self.cross_attention = nn.MultiheadAttention(
+            embed_dim=512, num_heads=8, batch_first=True
+        )
+        
+        self.fusion_network = nn.Sequential(
+            nn.Linear(512 + 256, 1024),  # GNN + Transformer outputs
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(512, 256)
+        )
+        
+        # Output heads for different Pentagon requirements
+        self.threat_assessment = nn.Linear(256, 8)  # Threat levels
+        self.priority_classification = nn.Linear(256, 5)  # Priority levels
+        self.action_recommendation = nn.Linear(256, 16)  # Recommended actions
+        self.confidence_estimator = nn.Linear(256, 1)  # Confidence score
+        
+        # Adversarial detection layer
+        self.adversarial_detector = nn.Sequential(
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 2)  # Adversarial vs. legitimate
+        )
+        
+    def forward(self, sequence_data: torch.Tensor, graph_nodes: torch.Tensor,
+                graph_edges: torch.Tensor, adjacency_matrix: torch.Tensor,
+                attention_mask: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        """Forward pass through complete Pentagon algorithm"""
+        
+        # META transformer processing
+        transformer_outputs = self.meta_encoder(sequence_data, attention_mask)
+        
+        # Palantir graph processing
+        graph_outputs = self.palantir_gnn(graph_nodes, graph_edges, adjacency_matrix)
+        
+        # Cross-modal attention between transformer and graph representations
+        transformer_features = transformer_outputs['fused_features'].unsqueeze(1)  # Add sequence dimension
+        graph_features = graph_outputs['node_embeddings'].mean(dim=1, keepdim=True)  # Global graph representation
+        
+        cross_attended, cross_attention_weights = self.cross_attention(
+            transformer_features, graph_features, graph_features
+        )
+        
+        # Fusion of modalities
+        fused_input = torch.cat([
+            cross_attended.squeeze(1),  # Remove sequence dimension
+            transformer_outputs['fused_features']
+        ], dim=-1)
+        
+        fused_representation = self.fusion_network(fused_input)
+        
+        # Generate Pentagon-specific outputs
+        threat_scores = torch.softmax(self.threat_assessment(fused_representation), dim=-1)
+        priority_levels = torch.softmax(self.priority_classification(fused_representation), dim=-1)
+        action_logits = self.action_recommendation(fused_representation)
+        confidence_scores = torch.sigmoid(self.confidence_estimator(fused_representation))
+        
+        # Adversarial detection
+        adversarial_logits = self.adversarial_detector(fused_representation)
+        adversarial_probs = torch.softmax(adversarial_logits, dim=-1)
+        
+        return {
+            'transformer_outputs': transformer_outputs,
+            'graph_outputs': graph_outputs,
+            'fused_representation': fused_representation,
+            'threat_scores': threat_scores,
+            'priority_levels': priority_levels,
+            'action_recommendations': torch.softmax(action_logits, dim=-1),
+            'confidence_scores': confidence_scores,
+            'adversarial_detection': adversarial_probs,
+            'cross_attention_weights': cross_attention_weights
+        }
+
+class EncryptedNeuralProcessor:
+    """Encrypted neural network processor for secure Pentagon operations"""
+    
+    def __init__(self, model_config: Dict[str, Any], classification: str = "SECRET"):
+        self.classification = classification
+        self.encryption_module = MilitaryEncryptionModule(classification)
+        self.model = PentagonNeuralAlgorithm(model_config)
+        self.model_encrypted = False
+        self.processing_stats = {
+            'total_processed': 0,
+            'encrypted_operations': 0,
+            'threat_detections': 0,
+            'high_priority_alerts': 0
+        }
+        logger.info(f"Encrypted neural processor initialized - Classification: {classification}")
+    
+    def encrypt_model_weights(self):
+        """Encrypt all model weights for secure storage/transmission"""
+        encrypted_weights = {}
+        for name, param in self.model.named_parameters():
+            encrypted_tensor = self.encryption_module.encrypt_tensor(param.data)
+            encrypted_weights[name] = encrypted_tensor
+        
+        self.encrypted_weights = encrypted_weights
+        self.model_encrypted = True
+        logger.info("Model weights encrypted for secure storage")
+    
+    def decrypt_model_weights(self):
+        """Decrypt model weights for processing"""
+        if not self.model_encrypted:
+            return
+        
+        for name, encrypted_tensor in self.encrypted_weights.items():
+            decrypted_tensor = self.encryption_module.decrypt_tensor(encrypted_tensor)
+            param = dict(self.model.named_parameters())[name]
+            param.data.copy_(decrypted_tensor)
+        
+        logger.info("Model weights decrypted for processing")
+    
+    def secure_inference(self, input_data: Dict[str, torch.Tensor]) -> Dict[str, Any]:
+        """Perform secure inference with encryption/decryption"""
+        start_time = time.time()
+        
+        # Decrypt model if encrypted
+        if self.model_encrypted:
+            self.decrypt_model_weights()
+        
+        # Perform inference
+        self.model.eval()
+        with torch.no_grad():
+            outputs = self.model(
+                sequence_data=input_data['sequence_data'],
+                graph_nodes=input_data['graph_nodes'],
+                graph_edges=input_data['graph_edges'],
+                adjacency_matrix=input_data['adjacency_matrix'],
+                attention_mask=input_data.get('attention_mask')
+            )
+        
+        # Re-encrypt model if it was encrypted
+        if self.model_encrypted:
+            self.encrypt_model_weights()
+        
+        # Process outputs for Pentagon requirements
+        processed_outputs = self._process_pentagon_outputs(outputs)
+        
+        # Update statistics
+        self.processing_stats['total_processed'] += 1
+        if processed_outputs['threat_level'] > 0.7:
+            self.processing_stats['threat_detections'] += 1
+        if processed_outputs['priority'] >= 4:
+            self.processing_stats['high_priority_alerts'] += 1
+        
+        processing_time = time.time() - start_time
+        
+        return {
+            'outputs': processed_outputs,
+            'processing_time': processing_time,
+            'classification': self.classification,
+            'timestamp': datetime.now().isoformat(),
+            'model_encrypted': self.model_encrypted
+        }
+    
+    def _process_pentagon_outputs(self, raw_outputs: Dict[str, torch.Tensor]) -> Dict[str, Any]:
+        """Process raw model outputs into Pentagon-specific format"""
+        # Extract key metrics
+        threat_scores = raw_outputs['threat_scores'][0].cpu().numpy()
+        priority_levels = raw_outputs['priority_levels'][0].cpu().numpy()
+        confidence = raw_outputs['confidence_scores'][0].item()
+        adversarial_prob = raw_outputs['adversarial_detection'][0, 1].item()  # Prob of adversarial
+        
+        # Determine threat level
+        threat_level = np.max(threat_scores)
+        threat_category = np.argmax(threat_scores)
+        
+        # Determine priority
+        priority = np.argmax(priority_levels) + 1  # 1-5 scale
+        
+        # Get recommended actions
+        action_probs = raw_outputs['action_recommendations'][0].cpu().numpy()
+        top_actions = np.argsort(action_probs)[-3:][::-1]  # Top 3 actions
+        
+        # Threat categories
+        threat_categories = [
+            'NO_THREAT', 'LOW_THREAT', 'MODERATE_THREAT', 'HIGH_THREAT',
+            'CRITICAL_THREAT', 'IMMINENT_THREAT', 'ACTIVE_THREAT', 'UNKNOWN_THREAT'
+        ]
+        
+        # Action categories
+        action_categories = [
+            'MONITOR', 'INVESTIGATE', 'ESCALATE', 'DEPLOY_ASSETS', 'COORDINATE_RESPONSE',
+            'EVACUATE', 'LOCKDOWN', 'COUNTER_ATTACK', 'SURVEILLANCE_INCREASE',
+            'NOTIFY_COMMAND', 'ACTIVATE_RESERVES', 'DIPLOMATIC_CONTACT',
+            'CYBER_DEFENSE', 'INFORMATION_WARFARE', 'SPECIAL_OPERATIONS', 'STANDBY'
+        ]
+        
+        return {
+            'threat_level': float(threat_level),
+            'threat_category': threat_categories[threat_category],
+            'priority': int(priority),
+            'confidence': float(confidence),
+            'adversarial_probability': float(adversarial_prob),
+            'recommended_actions': [action_categories[i] for i in top_actions],
+            'classification': self.classification,
+            'requires_human_review': threat_level > 0.8 or adversarial_prob > 0.3
+        }
+
+class GothamUpgradeSystem:
+    """Main Gotham platform upgrade system with Pentagon neural algorithm"""
+    
+    def __init__(self, config_file: str = None):
+        self.config = self._load_config(config_file)
+        self.neural_processor = EncryptedNeuralProcessor(
+            self.config['model'], 
+            self.config.get('classification', 'SECRET')
+        )
+        self.database_path = "gotham_neural_upgrade.db"
+        self._init_database()
+        self.active_sessions = {}
+        self.alert_queue = []
+        logger.info("Gotham upgrade system initialized with Pentagon neural algorithm")
+    
+    def _load_config(self, config_file: Optional[str]) -> Dict[str, Any]:
+        """Load system configuration"""
+        default_config = {
+            'classification': 'SECRET',
+            'model': {
+                'transformer_dim': 768,
+                'transformer_hidden': 2048,
+                'attention_heads': 16,
+                'transformer_layers': 12,
+                'node_features': 256,
+                'edge_features': 64,
+                'gnn_hidden': 512
+            },
+            'encryption': {
+                'key_rotation_hours': 1,
+                'integrity_checking': True
+            },
+            'processing': {
+                'batch_size': 32,
+                'max_sequence_length': 512,
+                'max_graph_nodes': 1000
+            }
+        }
+        
+        if config_file:
+            try:
+                with open(config_file, 'r') as f:
+                    file_config = json.load(f)
+                    default_config.update(file_config)
+            except Exception as e:
+                logger.warning(f"Could not load config file: {e}, using defaults")
+        
+        return default_config
+    
+    def _init_database(self):
+        """Initialize secure database for neural processing results"""
+        conn = sqlite3.connect(self.database_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS neural_analyses (
+                id TEXT PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                classification TEXT NOT NULL,
+                threat_level REAL,
+                threat_category TEXT,
+                priority INTEGER,
+                confidence REAL,
+                adversarial_prob REAL,
+                recommended_actions TEXT,
+                requires_review BOOLEAN,
+                processed_data_hash TEXT,
+                processing_time REAL
+            )
+        ''')
+        
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_alerts (
+                id TEXT PRIMARY KEY,
+                timestamp TEXT NOT NULL,
+                alert_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                description TEXT,
+                metadata TEXT
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def process_intelligence_data(self, sequence_data: List[str], graph_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process intelligence data through Pentagon neural algorithm"""
+        try:
+            # Prepare input tensors
+            input_tensors = self._prepare_input_tensors(sequence_data, graph_data)
+            
+            # Run secure inference
+            results = self.neural_processor.secure_inference(input_tensors)
+            
+            # Store results in database
+            analysis_id = self._store_analysis_results(results)
+            
+            # Generate alerts if necessary
+            if results['outputs']['requires_human_review']:
+                self._generate_alert(analysis_id, results['outputs'])
+            
+            # Update system metrics
+            self._update_system_metrics(results)
+            
+            return {
+                'analysis_id': analysis_id,
+                'results': results['outputs'],
+                'processing_time': results['processing_time'],
+                'classification': results['classification'],
+                'timestamp': results['timestamp']
+            }
+            
+        except Exception as e:
+            logger.error(f"Intelligence processing failed: {e}")
+            raise
+    
+    def _prepare_input_tensors(self, sequence_data: List[str], graph_data: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+        """Prepare input tensors from raw intelligence data"""
+        # Simulate text encoding (in real implementation, use actual tokenizer)
+        max_length = self.config['processing']['max_sequence_length']
+        sequence_tensor = torch.randn(1, max_length, 768)  # Simulated embeddings
+        
+        # Simulate graph data
+        max_nodes = min(len(graph_data.get('nodes', [])), self.config['processing']['max_graph_nodes'])
+        if max_nodes == 0:
+            max_nodes = 10  # Default for simulation
+        
+        graph_nodes = torch.randn(1, max_nodes, 256)
+        graph_edges = torch.randn(1, max_nodes * (max_nodes - 1) // 2, 64)
+        adjacency_matrix = torch.randint(0, 2, (1, max_nodes, max_nodes)).float()
+        
+        # Create attention mask
+        attention_mask = torch.zeros(1, max_length).bool()
+        actual_length = min(len(sequence_data), max_length)
+        attention_mask[0, actual_length:] = True
+        
+        return {
+            'sequence_data': sequence_tensor,
+            'graph_nodes': graph_nodes,
+            'graph_edges': graph_edges,
+            'adjacency_matrix': adjacency_matrix,
+            'attention_mask': attention_mask
+        }
+    
+    def _store_analysis_results(self, results: Dict[str, Any]) -> str:
+        """Store analysis results in secure database"""
+        analysis_id = f"ANAL_{int(time.time() * 1000)}"
+        
+        conn = sqlite3.connect(self.database_path)
+        cursor = conn.cursor()
+        
+        outputs = results['outputs']
+        cursor.execute('''
+            INSERT INTO neural_analyses
+            (id, timestamp, classification, threat_level, threat_category, priority,
+             confidence, adversarial_prob, recommended_actions, requires_review,
+             processed_data_hash, processing_time)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            analysis_id,
+            results['timestamp'],
+            results['classification'],
+            outputs['threat_level'],
+            outputs['threat_category'],
+            outputs['priority'],
+            outputs['confidence'],
+            outputs['adversarial_probability'],
+            json.dumps(outputs['recommended_actions']),
+            outputs['requires_human_review'],
+            hashlib.sha256(str(outputs).encode()).hexdigest(),
+            results['processing_time']
+        ))
+        
+        conn.commit()
+        conn.close()
+        
+        return analysis_id
+    
+    def _generate_alert(self, analysis_id: str, outputs: Dict[str, Any]):
+        """Generate system alert for high-priority findings"""
+        alert_id = f"ALERT_{int(time.time() * 1000)}"
+        
+        severity = "CRITICAL" if outputs['threat_level'] > 0.9 else "HIGH"
+        description = f"Neural analysis {analysis_id} requires immediate review - {outputs['threat_category']}"
+        
+        alert = {
+            '
