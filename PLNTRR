@@ -1436,3 +1436,335 @@ class EnhancedGothamPlatform:
                     'entity_id': entity.entity_id,
                     'entity_type': entity.entity_type
             '
+
+import numpy as np
+import pandas as pd
+import sqlite3
+import json
+from flask import Flask, request, jsonify
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
+import hashlib
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class NeuralNetworkPredictor:
+    def __init__(self):
+        self.model = None
+        self.scaler = StandardScaler()
+        self.is_trained = False
+        
+    def create_model(self, input_dim):
+        """Create a simple neural network model"""
+        model = keras.Sequential([
+            layers.Dense(64, activation='relu', input_shape=(input_dim,)),
+            layers.Dropout(0.3),
+            layers.Dense(32, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(16, activation='relu'),
+            layers.Dense(1, activation='sigmoid')  # Binary classification
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
+    
+    def train(self, X, y):
+        """Train the neural network"""
+        try:
+            # Scale features
+            X_scaled = self.scaler.fit_transform(X)
+            
+            # Split data
+            X_train, X_val, y_train, y_val = train_test_split(
+                X_scaled, y, test_size=0.2, random_state=42
+            )
+            
+            # Create and train model
+            self.model = self.create_model(X_scaled.shape[1])
+            
+            history = self.model.fit(
+                X_train, y_train,
+                validation_data=(X_val, y_val),
+                epochs=50,
+                batch_size=32,
+                verbose=0
+            )
+            
+            self.is_trained = True
+            logger.info("Neural network training completed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Training error: {str(e)}")
+            return False
+    
+    def predict(self, X):
+        """Make predictions"""
+        if not self.is_trained:
+            raise ValueError("Model must be trained before making predictions")
+        
+        X_scaled = self.scaler.transform(X)
+        predictions = self.model.predict(X_scaled)
+        return predictions.flatten()
+
+class SecureDatabase:
+    def __init__(self, db_path='neural_data.db'):
+        self.db_path = db_path
+        self.init_database()
+    
+    def init_database(self):
+        """Initialize database with sample tables"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Create sample data table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_data (
+                id INTEGER PRIMARY KEY,
+                feature1 REAL,
+                feature2 REAL,
+                feature3 REAL,
+                feature4 REAL,
+                target INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Create predictions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS predictions (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER,
+                prediction_value REAL,
+                confidence REAL,
+                model_hash TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Insert sample data if table is empty
+        cursor.execute('SELECT COUNT(*) FROM user_data')
+        if cursor.fetchone()[0] == 0:
+            sample_data = np.random.rand(1000, 4)
+            targets = (sample_data.sum(axis=1) > 2).astype(int)
+            
+            for i, (features, target) in enumerate(zip(sample_data, targets)):
+                cursor.execute('''
+                    INSERT INTO user_data (feature1, feature2, feature3, feature4, target)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (*features, int(target)))
+        
+        conn.commit()
+        conn.close()
+        logger.info("Database initialized")
+    
+    def execute_query(self, query, params=None):
+        """Execute SQL query securely"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            if params:
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            
+            # Handle different query types
+            if query.strip().upper().startswith('SELECT'):
+                results = cursor.fetchall()
+                columns = [description[0] for description in cursor.description]
+                conn.close()
+                return {'data': results, 'columns': columns}
+            else:
+                conn.commit()
+                conn.close()
+                return {'success': True, 'rows_affected': cursor.rowcount}
+                
+        except sqlite3.Error as e:
+            logger.error(f"Database error: {str(e)}")
+            return {'error': str(e)}
+    
+    def get_training_data(self):
+        """Retrieve data for neural network training"""
+        query = "SELECT feature1, feature2, feature3, feature4, target FROM user_data"
+        result = self.execute_query(query)
+        
+        if 'data' in result:
+            df = pd.DataFrame(result['data'], columns=result['columns'])
+            X = df[['feature1', 'feature2', 'feature3', 'feature4']].values
+            y = df['target'].values
+            return X, y
+        return None, None
+
+# Initialize components
+app = Flask(__name__)
+neural_predictor = NeuralNetworkPredictor()
+database = SecureDatabase()
+
+def generate_model_hash():
+    """Generate hash for model versioning"""
+    return hashlib.md5(str(np.random.random()).encode()).hexdigest()
+
+@app.route('/api/train', methods=['POST'])
+def train_model():
+    """API endpoint to train the neural network"""
+    try:
+        # Get training data from database
+        X, y = database.get_training_data()
+        
+        if X is None or y is None:
+            return jsonify({'error': 'No training data available'}), 400
+        
+        # Train the model
+        success = neural_predictor.train(X, y)
+        
+        if success:
+            return jsonify({
+                'message': 'Model trained successfully',
+                'model_hash': generate_model_hash(),
+                'training_samples': len(X)
+            })
+        else:
+            return jsonify({'error': 'Training failed'}), 500
+            
+    except Exception as e:
+        logger.error(f"Training API error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/predict', methods=['POST'])
+def make_prediction():
+    """API endpoint for neural network predictions"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'features' not in data:
+            return jsonify({'error': 'Features required'}), 400
+        
+        # Convert features to numpy array
+        features = np.array(data['features']).reshape(1, -1)
+        
+        # Make prediction
+        prediction = neural_predictor.predict(features)
+        confidence = float(prediction[0])
+        
+        # Store prediction in database
+        user_id = data.get('user_id', 1)
+        model_hash = generate_model_hash()
+        
+        database.execute_query('''
+            INSERT INTO predictions (user_id, prediction_value, confidence, model_hash)
+            VALUES (?, ?, ?, ?)
+        ''', (user_id, float(prediction[0]), confidence, model_hash))
+        
+        return jsonify({
+            'prediction': float(prediction[0]),
+            'confidence': confidence,
+            'classification': 'positive' if prediction[0] > 0.5 else 'negative'
+        })
+        
+    except Exception as e:
+        logger.error(f"Prediction API error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/query', methods=['POST'])
+def execute_sql_query():
+    """API endpoint for SQL queries"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'query' not in data:
+            return jsonify({'error': 'SQL query required'}), 400
+        
+        query = data['query']
+        params = data.get('params', None)
+        
+        # Basic SQL injection protection
+        forbidden_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER']
+        if any(keyword in query.upper() for keyword in forbidden_keywords):
+            return jsonify({'error': 'Query contains forbidden operations'}), 403
+        
+        result = database.execute_query(query, params)
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Query API error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/neural-query', methods=['POST'])
+def neural_enhanced_query():
+    """Combined neural network prediction with SQL query"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request data required'}), 400
+        
+        # Get base query results
+        if 'query' in data:
+            query_result = database.execute_query(data['query'])
+            
+            if 'error' in query_result:
+                return jsonify(query_result), 400
+        else:
+            query_result = {'data': [], 'columns': []}
+        
+        # Add neural network predictions if features provided
+        if 'features' in data:
+            features = np.array(data['features']).reshape(1, -1)
+            prediction = neural_predictor.predict(features)
+            
+            neural_result = {
+                'prediction': float(prediction[0]),
+                'confidence': float(prediction[0]),
+                'classification': 'positive' if prediction[0] > 0.5 else 'negative'
+            }
+        else:
+            neural_result = None
+        
+        return jsonify({
+            'sql_result': query_result,
+            'neural_prediction': neural_result,
+            'timestamp': pd.Timestamp.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Neural-query API error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/status', methods=['GET'])
+def get_status():
+    """API endpoint to check system status"""
+    return jsonify({
+        'status': 'online',
+        'neural_network_trained': neural_predictor.is_trained,
+        'database_connected': True,
+        'endpoints': [
+            '/api/train',
+            '/api/predict', 
+            '/api/query',
+            '/api/neural-query',
+            '/api/status'
+        ]
+    })
+
+in __name__ == '__main__':
+    # Train the model on startup
+    logger.info("Starting Neural Network SQL API...")
+    X, y = database.get_training_data()
+    if X is not None and y is not None:
+        neural_predictor.train(X, y)
+        logger.info("Initial model training completed")
+    
+    # Start the API server
+    app.run(debug=True, host='0.0.0.0', port=5000)
