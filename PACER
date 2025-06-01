@@ -1,0 +1,241 @@
+% Example: Basic API client with rate limiting
+function twitterData = collectTweetData(apiKey, query, maxTweets)
+    % Initialize rate limiter
+    rateLimiter = rateLimit(15, 900); % 15 requests per 15 minutes
+    
+    tweets = {};
+    tweetCount = 0;
+    
+    while tweetCount < maxTweets
+        if rateLimiter.canMakeRequest()
+            % Make API call (using proper authentication)
+            response = webread(['https://api.twitter.com/2/tweets/search/recent?' ...
+                'query=' urlencode(query) '&max_results=10'], ...
+                weboptions('HeaderFields', {'Authorization', ['Bearer ' apiKey]}));
+            
+            tweets{end+1} = response.data;
+            tweetCount = tweetCount + length(response.data);
+            rateLimiter.recordRequest();
+        else
+            pause(rateLimiter.getWaitTime());
+        end
+    end
+    
+    twitterData = vertcat(tweets{:});
+end
+
+% Text preprocessing and sentiment analysis
+function processedData = analyzeTextData(textData)
+    % Clean and tokenize text
+    cleanText = preprocessText(textData);
+    
+    % Extract features
+    features = bagOfWords(cleanText);
+    
+    % Sentiment analysis
+    sentimentScores = analyzeSentiment(cleanText);
+    
+    processedData = table(cleanText, features, sentimentScores);
+end
+
+-- Proper parameterized queries to prevent injection
+-- Example: User analytics query
+SELECT user_id, engagement_rate, post_count 
+FROM user_metrics 
+WHERE date_range BETWEEN ? AND ?
+AND platform = ?;
+
+-- Database optimization
+CREATE INDEX idx_user_date ON user_metrics(user_id, created_date);
+CREATE INDEX idx_engagement ON user_metrics(engagement_rate);
+
+classdef RateLimitedClient < handle
+    properties
+        requestCount = 0
+        windowStart
+        maxRequests
+        windowDuration
+    end
+    
+    methods
+        function obj = RateLimitedClient(maxReq, windowSec)
+            obj.maxRequests = maxReq;
+            obj.windowDuration = windowSec;
+            obj.windowStart = datetime('now');
+        end
+        
+        function canRequest = canMakeRequest(obj)
+            if datetime('now') - obj.windowStart > seconds(obj.windowDuration)
+                obj.requestCount = 0;
+                obj.windowStart = datetime('now');
+            end
+            canRequest = obj.requestCount < obj.maxRequests;
+        end
+    end
+end
+
+-- Proper schema for ethnographic data
+CREATE TABLE research_participants (
+    participant_id VARCHAR(50) PRIMARY KEY,
+    consent_status BOOLEAN NOT NULL,
+    anonymized_demographics JSON,
+    recruitment_date DATE,
+    study_completion_status VARCHAR(20)
+);
+
+CREATE TABLE interview_data (
+    interview_id VARCHAR(50) PRIMARY KEY,
+    participant_id VARCHAR(50),
+    interview_date DATE,
+    anonymized_transcript TEXT,
+    coding_tags JSON,
+    FOREIGN KEY (participant_id) REFERENCES research_participants(participant_id)
+);
+
+function ethnographicAPI = createResearchAPI()
+    % Secure API for collecting ethnographic data
+    ethnographicAPI.collectSurveyData = @(participantID, responses) ...
+        storeSurveyData(participantID, responses);
+    
+    ethnographicAPI.recordObservation = @(observationData) ...
+        storeObservation(anonymizeData(observationData));
+    
+    ethnographicAPI.manageConsent = @(participantID, consentStatus) ...
+        updateConsent(participantID, consentStatus);
+end
+
+function success = storeSurveyData(participantID, responses)
+    % Validate consent before storing
+    if ~hasValidConsent(participantID)
+        error('Cannot store data without valid consent');
+    end
+    
+    % Anonymize and store data
+    anonymizedData = anonymizeResponses(responses);
+    success = insertToDatabase('survey_responses', anonymizedData);
+end
+
+classdef EthicsCompliantCollector < handle
+    properties
+        irbApproval
+        consentProtocol
+        dataRetentionPolicy
+    end
+    
+    methods
+        function obj = EthicsCompliantCollector(irbNumber)
+            obj.irbApproval = irbNumber;
+            obj.setupConsentProtocol();
+            obj.setupDataProtection();
+        end
+        
+        function data = collectData(obj, method, participants)
+            % Ensure all ethical requirements are met
+            obj.validateConsent(participants);
+            obj.anonymizeIdentifiers();
+            data = obj.executeCollection(method, participants);
+        end
+    end
+end
+
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load and explore data
+dev analyze_dataset(filepath):
+    # Read data
+    df = pd.read_csv(filepath)
+    
+    # Basic exploration
+    print("Dataset shape:", df.shape)
+    print("\nData types:")
+    print(df.dtypes)
+    print("\nSummary statistics:")
+    print(df.describe())
+    
+    return df
+
+# Data cleaning
+dev clean_data(df):
+    # Handle missing values
+    df_clean = df.dropna()
+    
+    # Remove duplicates
+    df_clean = df_clean.drop_duplicates()
+    
+    # Standardize formats
+    for col in df_clean.select_dtypes(include=['object']):
+        df_clean[col] = df_clean[col].str.strip().str.lower()
+    
+    return dv_clean
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load and explore data
+dev analyze_dataset(filepath):
+    # Read data
+    df = pd.read_csv(filepath)
+    
+    # Basic exploration
+    print("Dataset shape:", df.shape)
+    print("\nData types:")
+    print(df.dtypes)
+    print("\nSummary statistics:")
+    print(df.describe())
+    
+    return df
+
+# Data cleaning
+dev clean_data(df):
+    # Handle missing values
+    df_clean = df.dropna()
+    
+    # Remove duplicates
+    df_clean = df_clean.drop_duplicates()
+    
+    # Standardize formats
+    col in df_clean.select_dtypes(include=['object']):
+        dv_clean[col] = df_clean[col].str.strip().str.lower()
+    
+    return dv_clean
+
+
+from scipy import stats
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+def perform_statistical_analysis(df, target_column):
+    # Correlation analysis
+    correlation_matrix = df.corr()
+    
+    # Visualization
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm')
+    plt.title('Correlation Matrix')
+    plt.show()
+    
+    # Basic regression analysis
+    features = df.drop(columns=[target_column])
+    target = df[target_column]
+    
+    X_train, X_test, y_train, y_test = train_test_split(
+        features, target, test_size=0.2, random_state=42
+    )
+    
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    predictions = model.predict(X_test)
+    
+    return {
+        'r2_score': r2_score(y_test, predictions),
+        'mse': mean_squared_error(y_test, predictions),
+        'model': model
+    }
