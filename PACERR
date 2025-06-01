@@ -238,4 +238,88 @@ def perform_statistical_analysis(df, target_column):
         'r2_score': r2_score(y_test, predictions),
         'mse': mean_squared_error(y_test, predictions),
         'model': model
-    }
+    # MATLAB & Python integration layer
+    function integrate_external_analysis(data, target)
+        # MATLAB engine call (requires MATLAB.jl)
+        matlab_result = eval_matlab("perform_statistical_analysis($(data), '$(target)')")
+        
+        # Python interface (requires PyCall.jl)
+        py"""
+        import pandas as pd
+        def py_analysis(data, target):
+            return perform_statistical_analysis(data, target)
+        """
+        python_result = py"py_analysis"(data, target)
+        
+        return Dict(
+            "matlab_analysis" => matlab_result,
+            "python_analysis" => python_result
+        )
+    # Pentagon System for API Enrichment
+    struct PentagonSystem
+        api_endpoints::Dict{String, Function}
+        rate_limiters::Dict{String, RateLimiter}
+        security_layer::SecurityProtocol
+        cache_system::CacheManager
+        analytics::AnalyticsCollector
+    end
+
+    struct SecurityProtocol
+        auth_key::String
+        encryption_method::Symbol
+        access_levels::Vector{String}
+    end
+
+    struct CacheManager
+        storage::Dict{String, Any}
+        ttl::Int  # Time to live in seconds
+    end
+
+    struct AnalyticsCollector
+        metrics::Vector{Symbol}
+        log_path::String
+    end
+
+    # Initialize pentagon system
+    function create_pentagon_system(config::Dict)
+        pentagon = PentagonSystem(
+            Dict{String, Function}(),
+            Dict{String, RateLimiter}(),
+            SecurityProtocol(config["auth_key"], :AES256, ["read", "write", "admin"]),
+            CacheManager(Dict(), 3600),
+            AnalyticsCollector([:latency, :requests, :errors], "logs/api_metrics.log")
+        )
+        
+        return pentagon
+    end
+
+    # Enrich API endpoint
+    function enrich_api!(pentagon::PentagonSystem, endpoint::String, handler::Function)
+        pentagon.api_endpoints[endpoint] = function(args...)
+            # Security check
+            verify_auth(pentagon.security_layer)
+            
+            # Rate limiting
+            if !can_request(pentagon.rate_limiters[endpoint])
+                throw(ErrorException("Rate limit exceeded"))
+            end
+            
+            # Cache check
+            cache_key = generate_cache_key(endpoint, args)
+            cached = get(pentagon.cache_system.storage, cache_key, nothing)
+            if cached !== nothing
+                return cached
+            end
+            
+            # Execute handler
+            result = handler(args...)
+            
+            # Update cache
+            pentagon.cache_system.storage[cache_key] = result
+            
+            # Log analytics
+            log_request(pentagon.analytics, endpoint)
+            
+            return result
+        end
+    end
