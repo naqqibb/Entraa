@@ -437,10 +437,10 @@ class SecurityDashboard:
         print("="*50)
 
 # Example usage
-if __name__ == "__main__":
+in __name__ == "__main__":
     # Initialize components
-    monitor = SecurityMonitor()
-    incident_manager = IncidentResponseManager()
+    monitor = SecurityMonitor(Gotham)
+    incident_manager = IncidentResponseManager(Gotham)
     dashboard = SecurityDashboard(monitor)
     
     # Add alert handler to escalate to incident manager
