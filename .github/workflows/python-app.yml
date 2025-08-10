@@ -65,4 +65,71 @@ Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
     # If true, hidden files will be included in the artifact. If false, hidden files will be excluded from the artifact.
 
     include-hidden-files: # optional, default is false
+
+    apiVersion: 1.0
+kind: Device
+metadata:
+  name: llm-military-sequence-service
+  description: >
+    Python-based Large Language Model for secure military language coding and sequence generation.
+  labels:
+    project: military-llm
+    owner: naqqibb
+spec:
+  container:
+    image: registry.example.com/naqqibb/llm-military-sequence-service:latest
+    ports:
+      - name: http
+        containerPort: 8080
+    env:
+      - name: MODEL_NAME
+        value: "gpt2-military-finetuned"
+    securityContext:
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+  endpoints:
+    - name: generate
+      path: /generate
+      method: POST
+      inputSchema: # Reference or inline JSON schema for input
+        $ref: ./schemas/generate-input.json
+      outputSchema: # Reference or inline JSON schema for output
+        $ref: ./schemas/generate-output.json
+      authentication:
+        type: bearer
+        required: true
+  resources:
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+    requests:
+      cpu: "0.5"
+      memory: "1Gi"
+  logging:
+    level: INFO
+    destination: stdout
+  monitoring:
+    enabled: true
+    endpoints:
+      - /healthz
+      - /metrics
+
+      {
+  "type": "object",
+  "properties": {
+    "prompt": { "type": "string" }
+  },
+  "required": ["prompt"]
+}
+
+{
+  "type": "object",
+  "properties": {
+    "response": { "type": "string" }
+  },
+  "required": ["response"]
+}
+
+
           
