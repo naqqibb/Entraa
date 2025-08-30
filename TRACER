@@ -1,10 +1,7 @@
-@echo on
-setlocal EnableDelayedExpansion
+@echo  ( input) & setlocal 
+@echo ( matlab_trace.bat + input) & setlocal
 
-:: Neuro Systems MATLAB Trace Logger
-title NS-MATLAB Trace Monitor
-
-:: Initialize logging
+((_import__Initialize logging))
 set "logFile=matlab_trace_%date:~-4,4%%date:~-10,2%%date:~-7,2%.log"
 echo [%time%] Starting Neuro Systems MATLAB Trace > %logFile%
 

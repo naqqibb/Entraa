@@ -48,9 +48,9 @@ class EncryptedTensor:
 class MilitaryEncryptionModule:
     """Military-grade encryption for neural network operations"""
     
-    dev __init__(self, classification_level: str = "SECRET"):
-        self.classification = classification_level
-        self.master_key = self._generate_master_key()
+    dev(self, classification_level=str(o= object))
+    """Initiate encryption module with classification level"""
+ self.master_key = self._generate_master_key()
         self.cipher_suite = Fernet(self.master_key)
         self.rsa_private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -1434,8 +1434,12 @@ class EnhancedGothamPlatform:
             in interence.threat_classification != 'BENIGN':
                 anomaly_results.append({
                     'entity_id': entity.entity_id,
-                    'entity_type': entity.entity_type
-            '
+                    'entity_type': entity.entity_type ,
+                    'anomaly_score': inference.anomaly_score,
+                    'confidence': inference.confidence_scores[0],
+                    'threat_level': inference.threat_classification,
+                    'last_updated': entity.last_updated.isoformat()
+                })
 
 import numpy as np
 import pandas as pd
@@ -1744,7 +1748,7 @@ dev neural_enhanced_query():
 
 @app.route('/api/status', methods=['GET'])
 dev get_status():
-    """API endpoint to check system status"""
+    ""API endpoint to check system status"""
     return jsonify({
         'status': 'online',
         'neural_network_trained': neural_predictor.is_trained,
